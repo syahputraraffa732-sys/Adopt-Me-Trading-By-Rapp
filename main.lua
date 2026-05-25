@@ -1,10 +1,10 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.8 - REVISI FIX]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.2.0 - OVERDRIVE]
 -- =========================================================================
 
--- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.8
+-- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.2.0
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.1.8", "DarkTheme")
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.2.0 OVERDRIVE", "DarkTheme")
 
 -- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
@@ -30,14 +30,13 @@ MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE - BYPASS VIA SINYAL SERVER ADOPT ME
+-- 3. MENU AUTOMATION TRADE - BRUTE-FORCE GHOST PROTOCOL
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
-local sistemSedangMengunci = false
 
-Section:NewToggle("Auto Accept Trade", "Status: Deteksi Sinyal Event Server", function(Value)
+Section:NewToggle("Auto Accept (Overdrive)", "Status: Brute-Force Aktif", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
@@ -45,80 +44,42 @@ Section:NewToggle("Auto Accept Trade", "Status: Deteksi Sinyal Event Server", fu
             local API = game:GetService("ReplicatedStorage"):WaitForChild("API", 5)
             local camera = workspace.CurrentCamera
             local vInput = game:GetService("VirtualInputManager")
-            local localPlayer = game:GetService("Players").LocalPlayer
             
-            sistemSedangMengunci = false
-            
-            -- Fungsi menembak 2 klik berurutan tepat pada koordinat tombol hijau
-            local function eksekusiKlikGerbangAwal()
-                if sistemSedangMengunci then return end
-                sistemSedangMengunci = true -- Kunci dinyalakan seketika!
-                
-                local screenWidth = camera.ViewportSize.X
-                local screenHeight = camera.ViewportSize.Y
-                local clickX = screenWidth * 0.60
-                local clickY = screenHeight * 0.78
-                
-                -- [KLIK 1: TERIMA AJAKAN TRADE]
-                vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
-                task.wait(0.05)
-                vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
-                
-                -- Jeda pendek 0.4 detik menunggu pop-up peringatan scam berganti di layar
-                task.wait(0.4)
-                
-                -- [KLIK 2: TERIMA PERINGATAN SCAM / OKAY]
-                vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
-                task.wait(0.05)
-                vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
-            end
-            
-            -- [SISTEM UTAMA] Memantau sinyal ajakan trade yang masuk dari server ke HP kamu
-            local koneksiSinyal = nil
-            if API and API:FindFirstChild("TradeAPI/OnTradeRequestReceived") then
-                koneksiSinyal = API["TradeAPI/OnTradeRequestReceived"].OnClientEvent:Connect(function(pemainYgNgajak)
-                    if _G.AutoAccept and not sistemSedangMengunci then
-                        task.wait(0.2) -- Jeda render animasi pop-up kertas surat
-                        eksekusiKlikGerbangAwal()
-                    end
-                end)
-            end
-            
-            -- LOOP UTAMA UNTUK BYPASS TAHAP TENGAH & AKHIR
             while _G.AutoAccept do
+                -- Gunakan pcall agar script kebal dari error pemblokiran game
                 pcall(function()
-                    local playerGui = localPlayer:FindFirstChild("PlayerGui")
-                    if playerGui then
-                        local sedangTrade = playerGui:FindFirstChild("TradeApp") or playerGui:FindFirstChild("DialogAPI") or playerGui:FindFirstChild("Trade")
-                        
-                        -- Jika masuk tab trade utama, Remote langsung konfirmasi otomatis via server tanpa klik layar
-                        if sedangTrade and API then
-                            sistemSedangMengunci = true -- Tetap kunci klik layar agar tombol Decline aman!
-                            
-                            if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
-                                API["TradeAPI/AcceptNegotiation"]:FireServer()
-                            end
-                            
-                            task.wait(0.8)
-                            
-                            if API:FindFirstChild("TradeAPI/ConfirmTrade") then
-                                API["TradeAPI/ConfirmTrade"]:FireServer()
-                            end
+                    local screenWidth = camera.ViewportSize.X
+                    local screenHeight = camera.ViewportSize.Y
+                    
+                    -- Koordinat pasti dari tombol hijau pop-up (60% Lebar, 78% Tinggi)
+                    local clickX = screenWidth * 0.60
+                    local clickY = screenHeight * 0.78
+                    
+                    -- [AKSI 1: TABRAK LAYAR BUTA]
+                    -- Terus mengetuk area Accept. Jika koordinat ini mengenai area hijau di tab trade utama, itu bonus!
+                    vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                    task.wait(0.05)
+                    vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+                    
+                    -- [AKSI 2: TABRAK SERVER BUTA]
+                    -- Memaksa server memproses konfirmasi tahap tengah dan akhir tanpa peduli UI
+                    if API then
+                        if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
+                            API["TradeAPI/AcceptNegotiation"]:FireServer()
                         end
                         
-                        -- RESET PENGUNCI JIKA SUDAH KELUAR DARI TRADE (KEMBALI KE LOBI)
-                        if not sedangTrade and sistemSedangMengunci then
-                            -- Beri jeda 2 detik sebelum sistem siap menerima ajakan trade berikutnya
-                            task.wait(2.0)
-                            sistemSedangMengunci = false
+                        -- Jeda sangat singkat antara dua remote
+                        task.wait(0.3)
+                        
+                        if API:FindFirstChild("TradeAPI/ConfirmTrade") then
+                            API["TradeAPI/ConfirmTrade"]:FireServer()
                         end
                     end
                 end)
-                task.wait(0.5)
+                
+                -- Jeda 1.5 detik: Menjaga performa perangkat agar tidak lag, tapi cukup cepat untuk melibas pop-up
+                task.wait(1.5)
             end
-            
-            -- Putus koneksi sinyal jika toggle dimatikan
-            if koneksiSinyal then koneksiSinyal:Disconnect() end
         end)
     end
 end)
