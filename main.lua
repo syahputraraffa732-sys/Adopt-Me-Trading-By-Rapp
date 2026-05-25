@@ -1,5 +1,5 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.8 - EVENT BYPASS]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.8 - REVISI FIX]
 -- =========================================================================
 
 -- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.8
@@ -84,7 +84,7 @@ Section:NewToggle("Auto Accept Trade", "Status: Deteksi Sinyal Event Server", fu
                 end)
             end
             
-            -- LOOP UTAMA UNTUK BYPASS TAHAP TENGAH & AKHIR (LANSET VIA REPLICATED STORAGE)
+            -- LOOP UTAMA UNTUK BYPASS TAHAP TENGAH & AKHIR
             while _G.AutoAccept do
                 pcall(function()
                     local playerGui = localPlayer:FindFirstChild("PlayerGui")
@@ -107,7 +107,7 @@ Section:NewToggle("Auto Accept Trade", "Status: Deteksi Sinyal Event Server", fu
                         end
                         
                         -- RESET PENGUNCI JIKA SUDAH KELUAR DARI TRADE (KEMBALI KE LOBI)
-                        if not sedangTrade and sistemMengunci Lalu then
+                        if not sedangTrade and sistemSedangMengunci then
                             -- Beri jeda 2 detik sebelum sistem siap menerima ajakan trade berikutnya
                             task.wait(2.0)
                             sistemSedangMengunci = false
