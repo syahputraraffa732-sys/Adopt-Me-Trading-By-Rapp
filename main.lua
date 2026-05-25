@@ -1,6 +1,7 @@
--- 1. SETUP UI UTAMA (KAVO LIBRARY)
+-- 1. SETUP UI UTAMA (KAVO LIBRARY) DENGAN VERSI v0.0.1
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp", "DarkTheme")
+-- Judul window diganti agar kamu bisa cek versinya di layar
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.0.1", "DarkTheme")
 
 -- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
