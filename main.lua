@@ -26,65 +26,45 @@ MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE
+-- 3. MENU AUTOMATION TRADE VIA REMOTE BYPASS
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
 
--- Fungsi alternatif menggunakan VirtualUser untuk menyimulasikan klik langsung pada koordinat tombol
-local function klikTombolSistem(tombol)
-    if tombol and tombol:IsA("TextButton") and tombol.AbsoluteSize.X > 0 then
-        pcall(function()
-            -- Menghitung titik tengah posisi tombol di layar HP
-            local posX = tombol.AbsolutePosition.X + (tombol.AbsoluteSize.X / 2)
-            local posY = tombol.AbsolutePosition.Y + (tombol.AbsoluteSize.Y / 2) + 36 -- Offset topbar Roblox
-            
-            -- Menggunakan VirtualUser untuk melakukan klik/ketukan pada koordinat tersebut
-            local virtualUser = game:GetService("VirtualUser")
-            virtualUser:Button1Down(Vector2.new(posX, posY))
-            task.wait(0.05)
-            virtualUser:Button1Up(Vector2.new(posX, posY))
-        end)
-    end
-end
-
-Section:NewToggle("Auto Accept Trade", "Klik otomatis semua tombol Accept", function(Value)
+Section:NewToggle("Auto Accept Trade", "Bypass server langsung untuk terima trade", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
         task.spawn(function()
-            -- Memastikan LocalPlayer bypass deteksi idle (opsional agar tidak ke-kick saat AFK)
-            pcall(function()
-                game:GetService("Players").LocalPlayer.Idled:Connect(function()
-                    game:GetService("VirtualUser"):Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                    task.wait(1)
-                    game:GetService("VirtualUser"):Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                end)
-            end)
-
+            local API = game:GetService("ReplicatedStorage"):WaitForChild("API", 5)
+            
             while _G.AutoAccept do
                 pcall(function()
-                    local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
-                    if playerGui then
-                        -- Memindai seluruh komponen UI di dalam PlayerGui secara menyeluruh
-                        for _, obj in pairs(playerGui:GetDescendants()) do
-                            if obj:IsA("TextButton") and obj.Visible and obj.AbsoluteSize.X > 0 then
-                                local name = obj.Name:lower()
-                                local text = obj.Text:lower()
-                                
-                                -- Pola pencarian nama/teks tombol konfirmasi trade Adopt Me (Tahap 1, Tahap 2, dan Dialog awal)
-                                if name == "accept" or name == "confirm" or name == "acceptbutton" or 
-                                   text:find("accept") or text:find("terima") or text:find("confirm") then
-                                    
-                                    klikTombolSistem(obj)
-                                    task.wait(0.1) -- Jeda singkat antar klik agar tidak dideteksi spam spamming oleh game
-                                end
-                            end
+                    if API then
+                        -- 1. Menerima ajakan trade di awal secara paksa
+                        if API:FindFirstChild("TradeAPI/AcceptOrDeclineTradeRequest") then
+                            API["TradeAPI/AcceptOrDeclineTradeRequest"]:InvokeServer()
+                        end
+                        
+                        -- Jeda 1 detik biar sistem gamenya gak bingung
+                        task.wait(1)
+                        
+                        -- 2. Menembak Remote Konfirmasi Pertama
+                        if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
+                            API["TradeAPI/AcceptNegotiation"]:FireServer()
+                        end
+                        
+                        -- Jeda lagi sebelum konfirmasi final
+                        task.wait(1)
+                        
+                        -- 3. Menembak Remote Konfirmasi Akhir (Hitung mundur 15 detik)
+                        if API:FindFirstChild("TradeAPI/ConfirmTrade") then
+                            API["TradeAPI/ConfirmTrade"]:FireServer()
                         end
                     end
                 end)
-                task.wait(0.3) -- Mengulang pemindaian setiap 0.3 detik
+                task.wait(1) -- Cek dan tembak ulang setiap 1 detik jika trade masih berlangsung
             end
         end)
     end
