@@ -1,10 +1,10 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.0 - DOUBLE TAP]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.1 - INSTANT DETECT]
 -- =========================================================================
 
--- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.0
+-- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.1
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.1.0", "DarkTheme")
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.1.1", "DarkTheme")
 
 -- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
@@ -30,13 +30,13 @@ MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE - VERSI SMART DOUBLE TAP
+-- 3. MENU AUTOMATION TRADE - VERSI DETEKSI JALUR UI ABSOLUT
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
 
-Section:NewToggle("Auto Accept Trade", "Status: Mode 2x Ketukan Berurutan", function(Value)
+Section:NewToggle("Auto Accept Trade", "Status: Deteksi Komponen TradeRequest", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
@@ -45,7 +45,7 @@ Section:NewToggle("Auto Accept Trade", "Status: Mode 2x Ketukan Berurutan", func
             local camera = workspace.CurrentCamera
             local vInput = game:GetService("VirtualInputManager")
             
-            -- Pengunci agar tidak ngeklik terus-menerus (Anti Auto-Clicker)
+            -- Pengunci anti-spam biar tidak bertingkah seperti auto-clicker biasa
             local prosesKlikSelesai = false
             
             while _G.AutoAccept do
@@ -53,18 +53,29 @@ Section:NewToggle("Auto Accept Trade", "Status: Mode 2x Ketukan Berurutan", func
                     local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
                     
                     if playerGui then
-                        -- Cek keberadaan pop-up ajakan awal di layar
+                        -- [DETEKSI JALUR UI ABSOLUT]
+                        -- Kita cari foldernya langsung berdasarkan nama sistem Adopt Me
                         local adaPopupAwal = false
-                        for _, obj in pairs(playerGui:GetDescendants()) do
-                            if obj:IsA("TextLabel") and obj.Visible and obj.Text:lower():find("trade request") then
-                                adaPopupAwal = true
-                                break
+                        
+                        -- Cara 1: Scan folder khusus TradeRequestApp
+                        if playerGui:FindFirstChild("TradeRequestApp") or playerGui:FindFirstChild("TradeRequest") then
+                            adaPopupAwal = true
+                        else
+                            -- Cara 2: Backup scan jika nama foldernya berada di dalam folder Dialog/Notification
+                            for _, obj in pairs(playerGui:GetDescendants()) do
+                                if obj.Name == "TradeRequestApp" or obj.Name == "TradeRequest" or (obj:IsA("Frame") and obj.Visible and obj.Name:find("Trade")) then
+                                    -- Memastikan ini adalah pop-up surat kertas yang sedang terbuka
+                                    if obj:FindFirstChild("Accept") or obj:FindFirstChild("AcceptButton") or obj:FindFirstChild("Decline") then
+                                        adaPopupAwal = true
+                                        break
+                                    end
+                                end
                             end
                         end
                         
-                        -- JIKA POP-UP MUNCUL DAN SCRIPT BELUM MELAKUKAN PROSES KLIK
+                        -- EKSEKUSI KLIK JIKA POP-UP CONFIRMED TERBUKA DI SISTEM
                         if adaPopupAwal and not prosesKlikSelesai then
-                            prosesKlikSelesai = true -- Langsung kunci sistem!
+                            prosesKlikSelesai = true -- Kunci klik diaktifkan!
                             
                             local screenWidth = camera.ViewportSize.X
                             local screenHeight = camera.ViewportSize.Y
@@ -78,18 +89,16 @@ Section:NewToggle("Auto Accept Trade", "Status: Mode 2x Ketukan Berurutan", func
                             task.wait(0.05)
                             vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
                             
-                            -- Jeda setengah detik menunggu pop-up scam muncul menggantikan pop-up awal
+                            -- Jeda setengah detik agar pop-up scam/peringatan muncul menggantikan posisi pop-up awal
                             task.wait(0.5)
                             
-                            -- [KLIK 2: TERIMA PERINGATAN SCAM / OKAY]
-                            -- Mengetuk area tengah/bawah lagi untuk bypass peringatan scam
+                            -- [KLIK 2: TERIMA PERINGATAN SCAM]
                             vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
                             task.wait(0.05)
                             vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
                         end
                         
-                        -- RESET PENGUNCI HANYA JIKA KEDUA PLAYER SUDAH TIDAK DALAM PROSES TRADE
-                        -- Kita cek jika folder 'TradeApp' atau jendela transaksi sudah menutup total, baru siap untuk trade berikutnya
+                        -- RESET PENGUNCI HANYA JIKA KEDUA PLAYER SUDAH BERSIH DARI WINDOW TRADE
                         local sedangTrade = playerGui:FindFirstChild("TradeApp") or playerGui:FindFirstChild("DialogAPI")
                         if not adaPopupAwal and not sedangTrade then
                             prosesKlikSelesai = false
@@ -98,7 +107,7 @@ Section:NewToggle("Auto Accept Trade", "Status: Mode 2x Ketukan Berurutan", func
                         -- ======================================================
                         -- [BYPASS REMOTE TAHAP TENGAH & AKHIR]
                         -- ======================================================
-                        -- Bagian ini murni berjalan di background server, aman dari tabrakan layar!
+                        -- Berjalan super lancar langsung via data server (tanpa klik layar lagi)
                         if sedangTrade and API then
                             if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
                                 API["TradeAPI/AcceptNegotiation"]:FireServer()
@@ -112,7 +121,7 @@ Section:NewToggle("Auto Accept Trade", "Status: Mode 2x Ketukan Berurutan", func
                         end
                     end
                 end)
-                task.wait(0.4)
+                task.wait(0.3)
             end
         end)
     end
