@@ -1,10 +1,10 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.2.2 - REMOTE STRIKE]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.2.3 - INVOKE FIX]
 -- =========================================================================
 
 -- 1. SETUP UI UTAMA
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.2.2", "DarkTheme")
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.2.3", "DarkTheme")
 
 -- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
@@ -28,56 +28,56 @@ MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE - VIA DATA REMOTESPY SIMPLESPY
+-- 3. MENU AUTOMATION TRADE - MENEMBAK REMOTE FUNCTION DENGAN AKURAT
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
 
-Section:NewToggle("Auto Accept (Remote Spy)", "Status: Menunggu Ajakan Trade", function(Value)
+Section:NewToggle("Auto Accept (Remote Invoke)", "Status: Menunggu Ajakan Trade", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
         task.spawn(function()
             local API = game:GetService("ReplicatedStorage"):WaitForChild("API", 5)
             
-            -- Pemicu Utama: Kita pantau sinyal dari server kalau ada trade masuk
+            -- Pemicu Utama: Kita pantau sinyal OnTradeRequestReceived dari server
             local koneksiSinyal = nil
             if API and API:FindFirstChild("TradeAPI/OnTradeRequestReceived") then
                 koneksiSinyal = API["TradeAPI/OnTradeRequestReceived"].OnClientEvent:Connect(function(pemainYgNgajak)
-                    -- Pastikan toggle menyala dan objek pemain yang mengajak itu valid
+                    -- Pastikan toggle menyala dan objek pemain yang mengajak trade terdeteksi
                     if _G.AutoAccept and pemainYgNgajak then
                         pcall(function()
-                            -- [DATA DARI SIMPLESPY LU]
-                            -- Langsung tembak remote server untuk menerima trade dari pemain tersebut!
+                            -- [DATA AKURAT DARI SIMPLESPY LU]
+                            -- Menggunakan InvokeServer sesuai dengan struktur sistem Adopt Me aslinya!
                             if API:FindFirstChild("TradeAPI/AcceptOrDeclineTradeRequest") then
-                                API["TradeAPI/AcceptOrDeclineTradeRequest"]:FireServer(pemainYgNgajak, true)
-                                print("Berhasil memotong UI! Menerima trade dari: " .. tostring(pemainYgNgajak))
+                                API["TradeAPI/AcceptOrDeclineTradeRequest"]:InvokeServer(pemainYgNgajak, true)
+                                print("Sukses melakukan bypass gerbang awal untuk pemain: " .. tostring(pemainYgNgajak))
                             end
                         end)
                     end
                 end)
             end
             
-            -- LOOP UNTUK CONCURRENT ACCEPT DI TAHAP NEGOSIASI DAN KONFIRMASI AKHIR
+            -- LOOP UTAMA UNTUK BYPASS TAHAP TENGAH (NEGOSIASI) DAN AKHIR (KONFIRMASI LAMA)
             while _G.AutoAccept do
                 pcall(function()
                     local localPlayer = game:GetService("Players").LocalPlayer
                     local playerGui = localPlayer:FindFirstChild("PlayerGui")
                     
                     if playerGui and API then
-                        -- Cek apakah jendela transaksi utama sudah terbuka di layar
+                        -- Cek status apakah tab transaksi utama sudah aktif di HP kamu
                         local sedangTrade = playerGui:FindFirstChild("TradeApp") or playerGui:FindFirstChild("DialogAPI") or playerGui:FindFirstChild("Trade")
                         
                         if sedangTrade then
-                            -- 1. Terima tahap penawaran barang (Negotiation)
+                            -- 1. Jalankan konfirmasi penawaran item pengorbanan (Negotiation)
                             if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
                                 API["TradeAPI/AcceptNegotiation"]:FireServer()
                             end
                             
                             task.wait(0.5)
                             
-                            -- 2. Terima tahap verifikasi akhir (Confirm / Penghitung Waktu Mundur)
+                            -- 2. Jalankan konfirmasi penghitung waktu mundur 15 detik terakhir (Confirm)
                             if API:FindFirstChild("TradeAPI/ConfirmTrade") then
                                 API["TradeAPI/ConfirmTrade"]:FireServer()
                             end
@@ -87,7 +87,7 @@ Section:NewToggle("Auto Accept (Remote Spy)", "Status: Menunggu Ajakan Trade", f
                 task.wait(0.5)
             end
             
-            -- Matikan pemantau sinyal jika toggle dimatikan
+            -- Putus jalur pemantauan sinyal jika fitur dinonaktifkan
             if koneksiSinyal then koneksiSinyal:Disconnect() end
         end)
     end
