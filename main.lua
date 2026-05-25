@@ -1,10 +1,10 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.0.6 - SMART BYPASS]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.0.7 - DELAY BYPASS]
 -- =========================================================================
 
--- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.0.6
+-- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.0.7
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.0.6", "DarkTheme")
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.0.7", "DarkTheme")
 
 -- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
@@ -30,13 +30,13 @@ MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE - VERSI ANTI-TABRAKAN
+-- 3. MENU AUTOMATION TRADE - VERSI JEDA AMAN
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
 
-Section:NewToggle("Auto Accept Trade", "Status: Anti Auto-Clicker Lock", function(Value)
+Section:NewToggle("Auto Accept Trade", "Status: Jeda Klik 5 Detik", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
@@ -45,15 +45,12 @@ Section:NewToggle("Auto Accept Trade", "Status: Anti Auto-Clicker Lock", functio
             local camera = workspace.CurrentCamera
             local vInput = game:GetService("VirtualInputManager")
             
-            -- Variabel pengunci agar tidak nge-klik terus menerus
-            local sudahKlikGerbangAwal = false
-            
             while _G.AutoAccept do
                 pcall(function()
                     local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
                     
                     if playerGui then
-                        -- 1. CEK APAKAH POP-UP AWAL ADA DI LAYAR
+                        -- 1. DETEKSI APAKAH POP-UP NYA MUNCUL DI LAYAR
                         local adaPopup = false
                         for _, obj in pairs(playerGui:GetDescendants()) do
                             if obj:IsA("TextLabel") and obj.Visible and obj.Text:lower():find("trade request") then
@@ -62,55 +59,45 @@ Section:NewToggle("Auto Accept Trade", "Status: Anti Auto-Clicker Lock", functio
                             end
                         end
                         
-                        -- 2. CEK APAKAH TAB TRADE UTAMA SUDAH TERBUKA
-                        -- Di Adopt Me, jika TradeApp/DialogAPI aktif, berarti kita sudah di dalam tab transaksi
-                        local sudahMasukTrade = playerGui:FindFirstChild("TradeApp") or playerGui:FindFirstChild("DialogAPI")
-                        
-                        -- [EKSEKUSI GERBANG AWAL]
-                        -- Hanya nge-klik JIKA ada pop-up DAN kita BELUM masuk ke tab trade utamanya
-                        if adaPopup and not sudahMasukTrade and not sudahKlikGerbangAwal then
-                            sudahKlikGerbangAwal = true -- Kunci aktif! Gak bakal nge-klik lagi sampai trade reset
-                            
+                        -- 2. EKSEKUSI KLIK LAYAR JIKA POP-UP TERDETEKSI
+                        if adaPopup then
                             local screenWidth = camera.ViewportSize.X
                             local screenHeight = camera.ViewportSize.Y
                             
-                            -- Posisi tombol hijau Accept kamu
+                            -- Koordinat tombol hijau Accept kamu
                             local clickX = screenWidth * 0.60
                             local clickY = screenHeight * 0.78
                             
-                            -- Sentuh sekali saja!
+                            -- Ketuk sekali saja
                             vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
                             task.wait(0.05)
                             vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
-                        end
-                        
-                        -- [RESET PENGUNCI]
-                        -- Jika pop-up hilang dan kita tidak sedang di dalam trade, reset status biar bisa terima trade baru nanti
-                        if not adaPopup and not sudahMasukTrade then
-                            sudahKlikGerbangAwal = false
+                            
+                            -- [KUNCI JEDA] Paksa script tidur selama 5 detik agar tidak terjadi spam klik hantu
+                            task.wait(5)
                         end
                         
                         -- ======================================================
                         -- [BYPASS REMOTE TAHAP TENGAH & AKHIR]
                         -- ======================================================
-                        -- Bagian ini berjalan aman lewat internet, tanpa menyentuh layar sama sekali!
-                        if sudahMasukTrade and API then
+                        -- Bagian ini berjalan aman via server tanpa mengganggu layar
+                        if API then
                             -- Menembak Remote Konfirmasi Tahap 1 (Accept hijau pertama)
                             if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
                                 API["TradeAPI/AcceptNegotiation"]:FireServer()
                             end
                             
-                            -- Jeda 0.8 detik menuju hitung mundur 15 detik
-                            task.wait(0.8)
+                            -- Jeda singkat menuju hitung mundur final
+                            task.wait(0.5)
                             
-                            -- Menembak Remote Konfirmasi Final
+                            -- Menembak Remote Konfirmasi Akhir
                             if API:FindFirstChild("TradeAPI/ConfirmTrade") then
                                 API["TradeAPI/ConfirmTrade"]:FireServer()
                             end
                         end
                     end
                 end)
-                task.wait(0.4) -- Pengecekan sistem berkala
+                task.wait(0.5) -- Cek berkala setiap 0.5 detik
             end
         end)
     end
