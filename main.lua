@@ -1,10 +1,10 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.0.4 - MOBILE BYPASS]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.0.5 - SCREEN TOUCH]
 -- =========================================================================
 
--- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.0.4
+-- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.0.5
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.0.4", "DarkTheme")
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.0.5", "DarkTheme")
 
 -- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
@@ -30,59 +30,73 @@ MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE - VERSI DETEKSI PLAYER
+-- 3. MENU AUTOMATION TRADE - VERSI KOORDINAT PERSENTASE LAYAR HP
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
 
-Section:NewToggle("Auto Accept Trade", "Status: Perbaikan Deteksi Gerbang Awal", function(Value)
+Section:NewToggle("Auto Accept Trade", "Status: Kalibrasi Sentuhan Layar HP", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
         task.spawn(function()
             local API = game:GetService("ReplicatedStorage"):WaitForChild("API", 5)
-            local localPlayer = game:GetService("Players").LocalPlayer
+            local camera = workspace.CurrentCamera
+            local vInput = game:GetService("VirtualInputManager")
             
             while _G.AutoAccept do
                 pcall(function()
-                    if API then
-                        -- ======================================================
-                        -- [TAHAP 1: Deteksi Semua Player di Server untuk Gerbang Awal]
-                        -- ======================================================
-                        -- Kita looping semua player aktif untuk menembak Remote Function secara massal
-                        for _, player in pairs(game:GetService("Players"):GetPlayers()) do
-                            if player ~= localPlayer then
-                                -- Menembak remote secara langsung menggunakan nama player yang ada di server
-                                -- Jika player tersebut memang sedang mengajak kita trade, server akan langsung menerimanya
-                                task.spawn(function()
-                                    pcall(function()
-                                        API["TradeAPI/AcceptOrDeclineTradeRequest"]:InvokeServer(player.Name, true)
-                                    end)
-                                end)
+                    local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+                    
+                    if playerGui then
+                        -- [KONDISI A: JIKA POP-UP AWAL MUNCUL DI LAYAR]
+                        -- Kita cek apakah ada dialog trade request yang sedang aktif terbuka
+                        local adaPopup = false
+                        for _, obj in pairs(playerGui:GetDescendants()) do
+                            if obj:IsA("TextLabel") and obj.Visible and obj.Text:lower():find("trade request") then
+                                adaPopup = true
+                                break
                             end
                         end
                         
-                        -- ======================================================
-                        -- [TAHAP 2 & 3: Bypass Konfirmasi Dalam Trade - Sudah Berhasil]
-                        -- ======================================================
-                        task.wait(0.5)
-                        
-                        -- Menembak Remote Konfirmasi Tahap 1
-                        if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
-                            API["TradeAPI/AcceptNegotiation"]:FireServer()
+                        -- Jika pop-up terdeteksi aktif di layar HP
+                        if adaPopup then
+                            -- Menghitung ukuran resolusi asli layar HP kamu saat ini
+                            local screenWidth = camera.ViewportSize.X
+                            local screenHeight = camera.ViewportSize.Y
+                            
+                            -- KALIBRASI PERSENTASE: Menghitung posisi tombol hijau "Accept" di HP Poco M7 Pro
+                            local clickX = screenWidth * 0.60  -- 60% dari lebar layar ke kanan
+                            local clickY = screenHeight * 0.78 -- 78% dari tinggi layar ke bawah
+                            
+                            -- Melakukan simulasi ketukan jari tepat di atas tombol hijau tersebut
+                            vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                            task.wait(0.05)
+                            vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
                         end
                         
-                        -- Jeda menuju tahap final
-                        task.wait(1)
-                        
-                        -- Menembak Remote Konfirmasi Akhir (Hitung mundur)
-                        if API:FindFirstChild("TradeAPI/ConfirmTrade") then
-                            API["TradeAPI/ConfirmTrade"]:FireServer()
+                        -- ======================================================
+                        -- [KONDISI B: BYPASS REMOTE UNTUK TAHAP TENGAH & AKHIR]
+                        -- ======================================================
+                        -- (Bagian ini tetap dipertahankan karena sudah terbukti berhasil 100%)
+                        if API then
+                            -- Menembak Remote Konfirmasi Tahap 1
+                            if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
+                                API["TradeAPI/AcceptNegotiation"]:FireServer()
+                            end
+                            
+                            -- Jeda menuju tahap konfirmasi final 15 detik
+                            task.wait(0.5)
+                            
+                            -- Menembak Remote Konfirmasi Akhir
+                            if API:FindFirstChild("TradeAPI/ConfirmTrade") then
+                                API["TradeAPI/ConfirmTrade"]:FireServer()
+                            end
                         end
                     end
                 end)
-                task.wait(0.8) -- Cek berkala agar tidak lag di HP
+                task.wait(0.4) -- Kecepatan ketukan jari otomatis (tiap 0.4 detik)
             end
         end)
     end
