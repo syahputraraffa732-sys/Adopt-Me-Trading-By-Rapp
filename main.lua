@@ -1,10 +1,10 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.1 - INSTANT DETECT]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.2 - COLOR DETECT]
 -- =========================================================================
 
--- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.1
+-- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.2
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.1.1", "DarkTheme")
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.1.2", "DarkTheme")
 
 -- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
@@ -30,13 +30,13 @@ MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE - VERSI DETEKSI JALUR UI ABSOLUT
+-- 3. MENU AUTOMATION TRADE - VERSI DETEKSI WARNA HIJAU TOMBOL
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
 
-Section:NewToggle("Auto Accept Trade", "Status: Deteksi Komponen TradeRequest", function(Value)
+Section:NewToggle("Auto Accept Trade", "Status: Deteksi Warna Tombol Hijau", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
@@ -45,7 +45,7 @@ Section:NewToggle("Auto Accept Trade", "Status: Deteksi Komponen TradeRequest", 
             local camera = workspace.CurrentCamera
             local vInput = game:GetService("VirtualInputManager")
             
-            -- Pengunci anti-spam biar tidak bertingkah seperti auto-clicker biasa
+            -- Pengunci agar tidak terjadi spam klik hantu (Anti Auto-Clicker)
             local prosesKlikSelesai = false
             
             while _G.AutoAccept do
@@ -53,29 +53,28 @@ Section:NewToggle("Auto Accept Trade", "Status: Deteksi Komponen TradeRequest", 
                     local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
                     
                     if playerGui then
-                        -- [DETEKSI JALUR UI ABSOLUT]
-                        -- Kita cari foldernya langsung berdasarkan nama sistem Adopt Me
-                        local adaPopupAwal = false
+                        -- [DETEKSI WARNA TOMBOL POP-UP]
+                        local adaTombolHijauAktif = false
                         
-                        -- Cara 1: Scan folder khusus TradeRequestApp
-                        if playerGui:FindFirstChild("TradeRequestApp") or playerGui:FindFirstChild("TradeRequest") then
-                            adaPopupAwal = true
-                        else
-                            -- Cara 2: Backup scan jika nama foldernya berada di dalam folder Dialog/Notification
-                            for _, obj in pairs(playerGui:GetDescendants()) do
-                                if obj.Name == "TradeRequestApp" or obj.Name == "TradeRequest" or (obj:IsA("Frame") and obj.Visible and obj.Name:find("Trade")) then
-                                    -- Memastikan ini adalah pop-up surat kertas yang sedang terbuka
-                                    if obj:FindFirstChild("Accept") or obj:FindFirstChild("AcceptButton") or obj:FindFirstChild("Decline") then
-                                        adaPopupAwal = true
+                        -- Kita scan seluruh objek UI di dalam PlayerGui
+                        for _, obj in pairs(playerGui:GetDescendants()) do
+                            if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and obj.Visible and obj.AbsoluteSize.X > 0 then
+                                -- Mengecek warna latar belakang objek (mencari elemen berwarna hijau khas Adopt Me)
+                                local warna = obj.BackgroundColor3
+                                -- Kisaran warna hijau (R rendah, G tinggi, B rendah)
+                                if warna.G > 0.5 and warna.R < 0.5 and warna.B < 0.5 then
+                                    -- Memastikan ini bukan tombol di dalam menu utama script kita sendiri
+                                    if not obj:IsDescendantOf(game:GetService("CoreGui")) then
+                                        adaTombolHijauAktif = true
                                         break
                                     end
                                 end
                             end
                         end
                         
-                        -- EKSEKUSI KLIK JIKA POP-UP CONFIRMED TERBUKA DI SISTEM
-                        if adaPopupAwal and not prosesKlikSelesai then
-                            prosesKlikSelesai = true -- Kunci klik diaktifkan!
+                        -- JIKA TOMBOL HIJAU POP-UP TERDETEKSI DAN SCRIPT BELUM MENGUNCI KLIK
+                        if adaTombolHijauAktif and not prosesKlikSelesai then
+                            prosesKlikSelesai = true -- Langsung kunci sistem klik layar!
                             
                             local screenWidth = camera.ViewportSize.X
                             local screenHeight = camera.ViewportSize.Y
@@ -84,30 +83,30 @@ Section:NewToggle("Auto Accept Trade", "Status: Deteksi Komponen TradeRequest", 
                             local clickX = screenWidth * 0.60
                             local clickY = screenHeight * 0.78
                             
-                            -- [KLIK 1: TERIMA AJAKAN TRADE]
+                            -- [KLIK 1: TERIMA AJAKAN TRADE AWAL]
                             vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
                             task.wait(0.05)
                             vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
                             
-                            -- Jeda setengah detik agar pop-up scam/peringatan muncul menggantikan posisi pop-up awal
+                            -- Jeda setengah detik agar pop-up scam muncul menggantikan pop-up awal
                             task.wait(0.5)
                             
-                            -- [KLIK 2: TERIMA PERINGATAN SCAM]
+                            -- [KLIK 2: TERIMA PERINGATAN SCAM / OKAY]
                             vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
                             task.wait(0.05)
                             vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
                         end
                         
-                        -- RESET PENGUNCI HANYA JIKA KEDUA PLAYER SUDAH BERSIH DARI WINDOW TRADE
+                        -- RESET PENGUNCI HANYA JIKA KEDUA LAYAR DI SANA SUDAH BERSIH DARI WINDOW TRADE
                         local sedangTrade = playerGui:FindFirstChild("TradeApp") or playerGui:FindFirstChild("DialogAPI")
-                        if not adaPopupAwal and not sedangTrade then
+                        if not adaTombolHijauAktif and not sedangTrade then
                             prosesKlikSelesai = false
                         end
                         
                         -- ======================================================
                         -- [BYPASS REMOTE TAHAP TENGAH & AKHIR]
                         -- ======================================================
-                        -- Berjalan super lancar langsung via data server (tanpa klik layar lagi)
+                        -- Bagian ini murni berjalan via data server (tanpa mengganggu layar trade utama)
                         if sedangTrade and API then
                             if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
                                 API["TradeAPI/AcceptNegotiation"]:FireServer()
