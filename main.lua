@@ -32,18 +32,20 @@ local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
 
--- Fungsi bantu untuk mensimulasikan klik jari pada tombol UI di HP
-local function klikTombolMobile(tombol)
+-- Fungsi alternatif menggunakan VirtualUser untuk menyimulasikan klik langsung pada koordinat tombol
+local function klikTombolSistem(tombol)
     if tombol and tombol:IsA("TextButton") and tombol.AbsoluteSize.X > 0 then
-        local vInput = game:GetService("VirtualInputManager")
-        -- Menghitung titik tengah tombol secara akurat di layar HP
-        local posX = tombol.AbsolutePosition.X + (tombol.AbsoluteSize.X / 2)
-        local posY = tombol.AbsolutePosition.Y + (tombol.AbsoluteSize.Y / 2) + 36 -- +36 untuk kompensasi top bar Roblox
-        
-        -- Simulasi ketukan jari (Touch/Click)
-        vInput:SendMouseButtonEvent(posX, posY, 0, true, game, 0)
-        task.wait(0.05)
-        vInput:SendMouseButtonEvent(posX, posY, 0, false, game, 0)
+        pcall(function()
+            -- Menghitung titik tengah posisi tombol di layar HP
+            local posX = tombol.AbsolutePosition.X + (tombol.AbsoluteSize.X / 2)
+            local posY = tombol.AbsolutePosition.Y + (tombol.AbsoluteSize.Y / 2) + 36 -- Offset topbar Roblox
+            
+            -- Menggunakan VirtualUser untuk melakukan klik/ketukan pada koordinat tersebut
+            local virtualUser = game:GetService("VirtualUser")
+            virtualUser:Button1Down(Vector2.new(posX, posY))
+            task.wait(0.05)
+            virtualUser:Button1Up(Vector2.new(posX, posY))
+        end)
     end
 end
 
@@ -52,41 +54,37 @@ Section:NewToggle("Auto Accept Trade", "Klik otomatis semua tombol Accept", func
     
     if _G.AutoAccept then
         task.spawn(function()
+            -- Memastikan LocalPlayer bypass deteksi idle (opsional agar tidak ke-kick saat AFK)
+            pcall(function()
+                game:GetService("Players").LocalPlayer.Idled:Connect(function()
+                    game:GetService("VirtualUser"):Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                    task.wait(1)
+                    game:GetService("VirtualUser"):Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                end)
+            end)
+
             while _G.AutoAccept do
                 pcall(function()
-                    local localPlayer = game:GetService("Players").LocalPlayer
-                    local playerGui = localPlayer:FindFirstChild("PlayerGui")
-                    
+                    local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
                     if playerGui then
-                        -- Metode 1: Mencari Dialog Ajakan Trade Awal (Pop-up "X mengajak kamu trade")
+                        -- Memindai seluruh komponen UI di dalam PlayerGui secara menyeluruh
                         for _, obj in pairs(playerGui:GetDescendants()) do
-                            if obj:IsA("TextButton") and obj.Visible then
-                                local namaTombol = obj.Name:lower()
-                                local teksTombol = obj.Text:lower()
+                            if obj:IsA("TextButton") and obj.Visible and obj.AbsoluteSize.X > 0 then
+                                local name = obj.Name:lower()
+                                local text = obj.Text:lower()
                                 
-                                -- Deteksi tombol terima ajakan di awal
-                                if namaTombol == "acceptbutton" or teksTombol:find("accept") or teksTombol:find("terima") then
-                                    klikTombolMobile(obj)
-                                end
-                            end
-                        end
-                        
-                        -- Metode 2: Mencari Jendela Transaksi Utama (Tempat pasang pet)
-                        -- Kita scan folder 'Dialogs' atau 'Trade' bawaan UI Adopt Me
-                        local dialogs = playerGui:FindFirstChild("DialogAPI") or playerGui:FindFirstChild("TradeApp")
-                        if dialogs then
-                            for _, btn in pairs(dialogs:GetDescendants()) do
-                                if btn:IsA("TextButton") and btn.Visible then
-                                    -- Mencari tombol konfirmasi hijau ("Accept" / "Confirm")
-                                    if btn.Name == "Accept" or btn.Name == "Confirm" or btn.Text:lower():find("accept") then
-                                        klikTombolMobile(btn)
-                                    end
+                                -- Pola pencarian nama/teks tombol konfirmasi trade Adopt Me (Tahap 1, Tahap 2, dan Dialog awal)
+                                if name == "accept" or name == "confirm" or name == "acceptbutton" or 
+                                   text:find("accept") or text:find("terima") or text:find("confirm") then
+                                    
+                                    klikTombolSistem(obj)
+                                    task.wait(0.1) -- Jeda singkat antar klik agar tidak dideteksi spam spamming oleh game
                                 end
                             end
                         end
                     end
                 end)
-                task.wait(0.3) -- Pengecekan cepat setiap 0.3 detik sekali
+                task.wait(0.3) -- Mengulang pemindaian setiap 0.3 detik
             end
         end)
     end
