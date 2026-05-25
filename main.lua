@@ -1,10 +1,10 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.7 - STATE SYSTEM]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.8 - EVENT BYPASS]
 -- =========================================================================
 
--- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.7
+-- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.8
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.1.7", "DarkTheme")
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.1.8", "DarkTheme")
 
 -- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
@@ -30,19 +30,14 @@ MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE - LOGIKA STATE MANAGEMENT (SARAN CHATGPT)
+-- 3. MENU AUTOMATION TRADE - BYPASS VIA SINYAL SERVER ADOPT ME
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
+local sistemSedangMengunci = false
 
--- Variabel State untuk mengontrol langkah klik agar tidak jadi auto-clicker liar
-local tradeState = {
-    step = 0,      -- 0 = Menunggu trade, 1 = Menunggu scam pop-up, 2 = Locked (masuk trade utama)
-    locked = false  -- Pengunci total klik layar
-}
-
-Section:NewToggle("Auto Accept Trade", "Status: Polling Ringan + State Lock", function(Value)
+Section:NewToggle("Auto Accept Trade", "Status: Deteksi Sinyal Event Server", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
@@ -50,76 +45,56 @@ Section:NewToggle("Auto Accept Trade", "Status: Polling Ringan + State Lock", fu
             local API = game:GetService("ReplicatedStorage"):WaitForChild("API", 5)
             local camera = workspace.CurrentCamera
             local vInput = game:GetService("VirtualInputManager")
-            local player = game:GetService("Players").LocalPlayer
+            local localPlayer = game:GetService("Players").LocalPlayer
             
-            -- Reset state saat awal dinyalakan
-            tradeState.step = 0
-            tradeState.locked = false
+            sistemSedangMengunci = false
             
+            -- Fungsi menembak 2 klik berurutan tepat pada koordinat tombol hijau
+            local function eksekusiKlikGerbangAwal()
+                if sistemSedangMengunci then return end
+                sistemSedangMengunci = true -- Kunci dinyalakan seketika!
+                
+                local screenWidth = camera.ViewportSize.X
+                local screenHeight = camera.ViewportSize.Y
+                local clickX = screenWidth * 0.60
+                local clickY = screenHeight * 0.78
+                
+                -- [KLIK 1: TERIMA AJAKAN TRADE]
+                vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                task.wait(0.05)
+                vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+                
+                -- Jeda pendek 0.4 detik menunggu pop-up peringatan scam berganti di layar
+                task.wait(0.4)
+                
+                -- [KLIK 2: TERIMA PERINGATAN SCAM / OKAY]
+                vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                task.wait(0.05)
+                vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+            end
+            
+            -- [SISTEM UTAMA] Memantau sinyal ajakan trade yang masuk dari server ke HP kamu
+            local koneksiSinyal = nil
+            if API and API:FindFirstChild("TradeAPI/OnTradeRequestReceived") then
+                koneksiSinyal = API["TradeAPI/OnTradeRequestReceived"].OnClientEvent:Connect(function(pemainYgNgajak)
+                    if _G.AutoAccept and not sistemSedangMengunci then
+                        task.wait(0.2) -- Jeda render animasi pop-up kertas surat
+                        eksekusiKlikGerbangAwal()
+                    end
+                end)
+            end
+            
+            -- LOOP UTAMA UNTUK BYPASS TAHAP TENGAH & AKHIR (LANSET VIA REPLICATED STORAGE)
             while _G.AutoAccept do
                 pcall(function()
-                    local playerGui = player:FindFirstChild("PlayerGui")
-                    local coreGui = game:GetService("CoreGui")
-                    
+                    local playerGui = localPlayer:FindFirstChild("PlayerGui")
                     if playerGui then
-                        -- Ambil ukuran resolusi layar HP kamu
-                        local screenWidth = camera.ViewportSize.X
-                        local screenHeight = camera.ViewportSize.Y
-                        local clickX = screenWidth * 0.60
-                        local clickY = screenHeight * 0.78
-                        
-                        -- Cek apakah tab trade utama (tempat naruh pet) sudah terbuka
                         local sedangTrade = playerGui:FindFirstChild("TradeApp") or playerGui:FindFirstChild("DialogAPI") or playerGui:FindFirstChild("Trade")
                         
-                        -- JIKA SUDAH MASUK TRADE UTAMA -> KUNCI MATI SEMUA PROSES KLIK LAYAR
-                        if sedangTrade then
-                            tradeState.step = 2
-                            tradeState.locked = true
-                        end
-                        
-                        -- ======================================================
-                        -- FLOW AUTOMATION GERBANG AWAL (ANTI-SPAM)
-                        -- ======================================================
-                        if not tradeState.locked then
-                            
-                            -- [STEP 0: DETEKSI AJAKAN TRADE AWAL]
-                            if tradeState.step == 0 then
-                                local ketemuTradeRequest = false
-                                -- Scan menyeluruh termasuk mengantisipasi nested container (saran ChatGPT)
-                                for _, obj in pairs(playerGui:GetDescendants()) do
-                                    if obj:IsA("TextLabel") and obj.Visible and obj.Text:lower():find("trade request") then
-                                        ketemuTradeRequest = true
-                                        break
-                                    end
-                                end
-                                
-                                if ketemuTradeRequest then
-                                    tradeState.step = 1 -- Naikkan ke step 1 agar tidak bisa mengeklik area ini lagi
-                                    
-                                    -- Eksekusi KLIK 1 (Terima Ajakan)
-                                    vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
-                                    task.wait(0.05)
-                                    vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
-                                    
-                                    task.wait(0.5) -- Jeda setengah detik sesuai flow game
-                                end
-                                
-                            -- [STEP 1: DETEKSI PERINGATAN SCAM / POP-UP KEDUA]
-                            elseif tradeState.step == 1 then
-                                -- Langsung eksekusi Klik 2 untuk bypass scam warning yang muncul menggantikan pop-up awal
-                                vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
-                                task.wait(0.05)
-                                vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
-                                
-                                tradeState.step = 2
-                                tradeState.locked = true -- SISTEM KLIK DIKUNCI MATI TOTAL!
-                            end
-                        end
-                        
-                        -- ======================================================
-                        -- [BYPASS REMOTE TAHAP TENGAH & AKHIR VIA SERVER]
-                        -- ======================================================
+                        -- Jika masuk tab trade utama, Remote langsung konfirmasi otomatis via server tanpa klik layar
                         if sedangTrade and API then
+                            sistemSedangMengunci = true -- Tetap kunci klik layar agar tombol Decline aman!
+                            
                             if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
                                 API["TradeAPI/AcceptNegotiation"]:FireServer()
                             end
@@ -131,27 +106,19 @@ Section:NewToggle("Auto Accept Trade", "Status: Polling Ringan + State Lock", fu
                             end
                         end
                         
-                        -- RESET STATE JIKA TRANSAKSI SUDAH SELESAI / BATAL (KEMBALI KE LOBI)
-                        if not sedangTrade and tradeState.locked then
-                            -- Pastikan pop-up trade request sudah benar-benar hilang dari layar sebelum reset
-                            local masihAdaPopup = false
-                            for _, obj in pairs(playerGui:GetDescendants()) do
-                                if obj:IsA("TextLabel") and obj.Visible and obj.Text:lower():find("trade request") then
-                                    masihAdaPopup = true
-                                    break
-                                end
-                            end
-                            
-                            if not masihAdaPopup then
-                                tradeState.step = 0
-                                tradeState.locked = false
-                            end
+                        -- RESET PENGUNCI JIKA SUDAH KELUAR DARI TRADE (KEMBALI KE LOBI)
+                        if not sedangTrade and sistemMengunci Lalu then
+                            -- Beri jeda 2 detik sebelum sistem siap menerima ajakan trade berikutnya
+                            task.wait(2.0)
+                            sistemSedangMengunci = false
                         end
-                        
                     end
                 end)
-                task.wait(0.2) -- Polling ringan berkala (ramah baterai HP dan anti-lag)
+                task.wait(0.5)
             end
+            
+            -- Putus koneksi sinyal jika toggle dimatikan
+            if koneksiSinyal then koneksiSinyal:Disconnect() end
         end)
     end
 end)
