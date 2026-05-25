@@ -1,10 +1,10 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.0.9 - TWO-STEP EVENT]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.0 - DOUBLE TAP]
 -- =========================================================================
 
--- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.0.9
+-- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.0
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.0.9", "DarkTheme")
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.1.0", "DarkTheme")
 
 -- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
@@ -30,79 +30,81 @@ MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE - VERSI 2 KLIK TEPAT TARGET
+-- 3. MENU AUTOMATION TRADE - VERSI SMART DOUBLE TAP
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
 
--- Fungsi klik yang aman langsung menyasar elemen GUI Roblox
-local function tekanTombolRoblox(tombol)
-    if tombol then
-        pcall(function()
-            -- Klik internal via engine Roblox
-            tombol:Activate()
-            
-            -- Jalur alternatif simulasi klik keyboard/enter via GuiService agar sinkron di mobile
-            game:GetService("GuiService").SelectedObject = tombol
-            task.wait(0.02)
-            local vInput = game:GetService("VirtualInputManager")
-            vInput:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-            task.wait(0.02)
-            vInput:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-            game:GetService("GuiService").SelectedObject = nil
-        end)
-    end
-end
-
-Section:NewToggle("Auto Accept Trade", "Status: Deteksi 2-Tahap Gerbang Awal", function(Value)
+Section:NewToggle("Auto Accept Trade", "Status: Mode 2x Ketukan Berurutan", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
         task.spawn(function()
             local API = game:GetService("ReplicatedStorage"):WaitForChild("API", 5)
+            local camera = workspace.CurrentCamera
+            local vInput = game:GetService("VirtualInputManager")
+            
+            -- Pengunci agar tidak ngeklik terus-menerus (Anti Auto-Clicker)
+            local prosesKlikSelesai = false
             
             while _G.AutoAccept do
                 pcall(function()
                     local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
                     
                     if playerGui then
-                        -- Loop mencari tombol spesifik di seluruh PlayerGui
+                        -- Cek keberadaan pop-up ajakan awal di layar
+                        local adaPopupAwal = false
                         for _, obj in pairs(playerGui:GetDescendants()) do
-                            if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and obj.Visible and obj.AbsoluteSize.X > 0 then
-                                local namaObjek = obj.Name:lower()
-                                local teksObjek = ""
-                                
-                                if obj:IsA("TextButton") then
-                                    teksObjek = obj.Text:lower()
-                                end
-                                
-                                -- [KLIK 1: MENERIMA POP-UP AJAKAN TRADE AWAL]
-                                -- Mencari tombol hijau bertuliskan Accept / bernama Accept
-                                if namaObjek == "accept" or namaObjek == "acceptbutton" or teksObjek:find("accept") or teksObjek:find("terima") then
-                                    tekanTombolRoblox(obj)
-                                    task.wait(0.3) -- Kasih jeda sedikit agar sistem memproses pop-up berikutnya
-                                end
-                                
-                                -- [KLIK 2: MENERIMA PERINGATAN SCAM / POP-UP KONFIRMASI TAMBAHAN]
-                                -- Mencari tombol konfirmasi seperti "Okay", "Agree", "Confirm", atau tombol utama bermotif hijau
-                                if namaObjek == "okay" or namaObjek == "confirm" or teksObjek:find("okay") or teksObjek:find("agree") or teksObjek:find("confirm") then
-                                    tekanTombolRoblox(obj)
-                                    task.wait(0.3)
-                                end
+                            if obj:IsA("TextLabel") and obj.Visible and obj.Text:lower():find("trade request") then
+                                adaPopupAwal = true
+                                break
                             end
+                        end
+                        
+                        -- JIKA POP-UP MUNCUL DAN SCRIPT BELUM MELAKUKAN PROSES KLIK
+                        if adaPopupAwal and not prosesKlikSelesai then
+                            prosesKlikSelesai = true -- Langsung kunci sistem!
+                            
+                            local screenWidth = camera.ViewportSize.X
+                            local screenHeight = camera.ViewportSize.Y
+                            
+                            -- Koordinat tombol hijau "Accept" kamu (60% lebar, 78% tinggi)
+                            local clickX = screenWidth * 0.60
+                            local clickY = screenHeight * 0.78
+                            
+                            -- [KLIK 1: TERIMA AJAKAN TRADE]
+                            vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                            task.wait(0.05)
+                            vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+                            
+                            -- Jeda setengah detik menunggu pop-up scam muncul menggantikan pop-up awal
+                            task.wait(0.5)
+                            
+                            -- [KLIK 2: TERIMA PERINGATAN SCAM / OKAY]
+                            -- Mengetuk area tengah/bawah lagi untuk bypass peringatan scam
+                            vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                            task.wait(0.05)
+                            vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+                        end
+                        
+                        -- RESET PENGUNCI HANYA JIKA KEDUA PLAYER SUDAH TIDAK DALAM PROSES TRADE
+                        -- Kita cek jika folder 'TradeApp' atau jendela transaksi sudah menutup total, baru siap untuk trade berikutnya
+                        local sedangTrade = playerGui:FindFirstChild("TradeApp") or playerGui:FindFirstChild("DialogAPI")
+                        if not adaPopupAwal and not sedangTrade then
+                            prosesKlikSelesai = false
                         end
                         
                         -- ======================================================
                         -- [BYPASS REMOTE TAHAP TENGAH & AKHIR]
                         -- ======================================================
-                        -- Berjalan aman di background tanpa mengacaukan layar trade utama kamu
-                        if API then
+                        -- Bagian ini murni berjalan di background server, aman dari tabrakan layar!
+                        if sedangTrade and API then
                             if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
                                 API["TradeAPI/AcceptNegotiation"]:FireServer()
                             end
                             
-                            task.wait(0.5)
+                            task.wait(0.8)
                             
                             if API:FindFirstChild("TradeAPI/ConfirmTrade") then
                                 API["TradeAPI/ConfirmTrade"]:FireServer()
@@ -110,7 +112,7 @@ Section:NewToggle("Auto Accept Trade", "Status: Deteksi 2-Tahap Gerbang Awal", f
                         end
                     end
                 end)
-                task.wait(0.4) -- Deteksi ulang berkala
+                task.wait(0.4)
             end
         end)
     end
