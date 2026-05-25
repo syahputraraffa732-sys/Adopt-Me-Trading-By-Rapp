@@ -1,13 +1,12 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.0.3 - MOBILE BYPASS]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.0.4 - MOBILE BYPASS]
 -- =========================================================================
 
--- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.0.3
+-- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.0.4
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
--- Judul window v0.0.3 agar kita bisa cek cache
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.0.3", "DarkTheme")
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.0.4", "DarkTheme")
 
--- 2. TOMBOL MINIMIZE HP (BULAT MERAH) - Berfungsi 100%
+-- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
 local MinButton = Instance.new("TextButton")
 local UICorner = Instance.new("UICorner")
@@ -16,95 +15,74 @@ ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.Name = "RappMinimizeSystem"
 
 MinButton.Parent = ScreenGui
-MinButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50) -- Merah
-MinButton.Position = UDim2.new(0, 15, 0, 15) -- Pojok kiri atas
-MinButton.Size = UDim2.new(0, 50, 0, 50) -- Ukuran bulat pas di mobile
+MinButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+MinButton.Position = UDim2.new(0, 15, 0, 15)
+MinButton.Size = UDim2.new(0, 50, 0, 50)
 MinButton.Text = "R"
 MinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 MinButton.Font = Enum.Font.SourceSansBold
 MinButton.TextSize = 22
 
-UICorner.CornerRadius = UDim.new(1, 0) -- Membuatnya bulat sempurna
+UICorner.CornerRadius = UDim.new(1, 0)
 UICorner.Parent = MinButton
 
 MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE - REKAYASA SISTEM TRADE API
+-- 3. MENU AUTOMATION TRADE - VERSI DETEKSI PLAYER
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
 
--- Variabel internal untuk menyimpan data player pengajak
-local targetPlayerName = nil
-
-Section:NewToggle("Auto Accept Trade", "Bypass server untuk konfirmasi trade", function(Value)
+Section:NewToggle("Auto Accept Trade", "Status: Perbaikan Deteksi Gerbang Awal", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
         task.spawn(function()
             local API = game:GetService("ReplicatedStorage"):WaitForChild("API", 5)
+            local localPlayer = game:GetService("Players").LocalPlayer
             
             while _G.AutoAccept do
                 pcall(function()
-                    local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
-                    
-                    if API and playerGui then
+                    if API then
                         -- ======================================================
-                        -- [TAHAP 1: Menangkap Nama Player Pengajak Trade dari Pop-up]
+                        -- [TAHAP 1: Deteksi Semua Player di Server untuk Gerbang Awal]
                         -- ======================================================
-                        -- Kita scan PlayerGui secara menyeluruh untuk mencari Label Teks Nama
-                        for _, obj in pairs(playerGui:GetDescendants()) do
-                            if obj:IsA("TextLabel") and obj.Visible and obj.AbsoluteSize.X > 0 then
-                                local text = obj.Text:lower()
-                                
-                                -- Mencari kata kunci "sent you a trade request"
-                                if text:find("trade request") and text:find("sent") then
-                                    -- Menarik nama player yang ada di bagian atas pop-up tersebut
-                                    local lines = string.split(obj.Text, "\n")
-                                    if #lines > 0 then
-                                        -- Mengambil nama dari baris pertama teks, lalu bersihkan dari whitespace
-                                        targetPlayerName = string.gsub(lines[1], "%s+", "")
-                                    end
-                                end
+                        -- Kita looping semua player aktif untuk menembak Remote Function secara massal
+                        for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+                            if player ~= localPlayer then
+                                -- Menembak remote secara langsung menggunakan nama player yang ada di server
+                                -- Jika player tersebut memang sedang mengajak kita trade, server akan langsung menerimanya
+                                task.spawn(function()
+                                    pcall(function()
+                                        API["TradeAPI/AcceptOrDeclineTradeRequest"]:InvokeServer(player.Name, true)
+                                    end)
+                                end)
                             end
                         end
                         
                         -- ======================================================
-                        -- [TAHAP 2: Mengirim Data Valid ke Server untuk Bypass Tombol Accept]
+                        -- [TAHAP 2 & 3: Bypass Konfirmasi Dalam Trade - Sudah Berhasil]
                         -- ======================================================
-                        -- Jika nama player sudah ditangkap dari pop-up
-                        if targetPlayerName and API:FindFirstChild("TradeAPI/AcceptOrDeclineTradeRequest") then
-                            -- Menembak RemoteFunction dengan mengirimkan argumen data target player-nya!
-                            local success = API["TradeAPI/AcceptOrDeclineTradeRequest"]:InvokeServer(targetPlayerName, true)
-                            -- Jika sukses, reset variabel agar siap untuk trade berikutnya
-                            if success then
-                                targetPlayerName = nil
-                                -- Jeda singkat biar jendela trade terbuka dulu
-                                task.wait(1)
-                            end
-                        end
+                        task.wait(0.5)
                         
-                        -- ======================================================
-                        -- [TAHAP 3 & 4: Bypass Konfirmasi Dalam Trade - 100% Berhasil]
-                        -- ======================================================
-                        -- Menembak Remote Konfirmasi Pertama (setelah item dimasukkan)
+                        -- Menembak Remote Konfirmasi Tahap 1
                         if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
                             API["TradeAPI/AcceptNegotiation"]:FireServer()
                         end
                         
-                        -- Jeda sebelum konfirmasi final
+                        -- Jeda menuju tahap final
                         task.wait(1)
                         
-                        -- Menembak Remote Konfirmasi Akhir (Hitung mundur 15 detik)
+                        -- Menembak Remote Konfirmasi Akhir (Hitung mundur)
                         if API:FindFirstChild("TradeAPI/ConfirmTrade") then
                             API["TradeAPI/ConfirmTrade"]:FireServer()
                         end
                     end
                 end)
-                task.wait(1) -- Jeda pemindaian setiap 1 detik
+                task.wait(0.8) -- Cek berkala agar tidak lag di HP
             end
         end)
     end
