@@ -1,10 +1,10 @@
 -- =========================================================================
--- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.6 - SMART DEBOUNCE]
+-- [SCRIPT ADOPT ME AUTO ACCEPT TRADE BY RAPP - VERSI v0.1.7 - STATE SYSTEM]
 -- =========================================================================
 
--- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.6
+-- 1. SETUP UI UTAMA DENGAN VERSI TERBARU v0.1.7
 local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.1.6", "DarkTheme")
+local Window = KavoLib.CreateLib("Adopt Me Trade By Rapp | v0.1.7", "DarkTheme")
 
 -- 2. TOMBOL MINIMIZE HP (BULAT MERAH)
 local ScreenGui = Instance.new("ScreenGui")
@@ -30,13 +30,19 @@ MinButton.MouseButton1Click:Connect(function()
     KavoLib:ToggleUI()
 end)
 
--- 3. MENU AUTOMATION TRADE - VERSI ANTI AUTO-CLICKER LIAR
+-- 3. MENU AUTOMATION TRADE - LOGIKA STATE MANAGEMENT (SARAN CHATGPT)
 local TabUtama = Window:NewTab("Fitur Trade")
 local Section = TabUtama:NewSection("Automation")
 
 _G.AutoAccept = false
 
-Section:NewToggle("Auto Accept Trade", "Status: Mode Pengunci Jeda Akurat", function(Value)
+-- Variabel State untuk mengontrol langkah klik agar tidak jadi auto-clicker liar
+local tradeState = {
+    step = 0,      -- 0 = Menunggu trade, 1 = Menunggu scam pop-up, 2 = Locked (masuk trade utama)
+    locked = false  -- Pengunci total klik layar
+}
+
+Section:NewToggle("Auto Accept Trade", "Status: Polling Ringan + State Lock", function(Value)
     _G.AutoAccept = Value
     
     if _G.AutoAccept then
@@ -44,47 +50,75 @@ Section:NewToggle("Auto Accept Trade", "Status: Mode Pengunci Jeda Akurat", func
             local API = game:GetService("ReplicatedStorage"):WaitForChild("API", 5)
             local camera = workspace.CurrentCamera
             local vInput = game:GetService("VirtualInputManager")
+            local player = game:GetService("Players").LocalPlayer
+            
+            -- Reset state saat awal dinyalakan
+            tradeState.step = 0
+            tradeState.locked = false
             
             while _G.AutoAccept do
                 pcall(function()
-                    local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+                    local playerGui = player:FindFirstChild("PlayerGui")
+                    local coreGui = game:GetService("CoreGui")
                     
                     if playerGui then
-                        -- Cek apakah kita sudah sukses berada di dalam tab trade utama (tempat naruh pet)
+                        -- Ambil ukuran resolusi layar HP kamu
+                        local screenWidth = camera.ViewportSize.X
+                        local screenHeight = camera.ViewportSize.Y
+                        local clickX = screenWidth * 0.60
+                        local clickY = screenHeight * 0.78
+                        
+                        -- Cek apakah tab trade utama (tempat naruh pet) sudah terbuka
                         local sedangTrade = playerGui:FindFirstChild("TradeApp") or playerGui:FindFirstChild("DialogAPI") or playerGui:FindFirstChild("Trade")
                         
-                        -- [EKSEKUSI GERBANG AWAL]
-                        -- Jika KITA BELUM masuk ke tab trade utama, lepaskan 2 ketukan berurutan dengan jeda aman
-                        if not sedangTrade then
-                            local screenWidth = camera.ViewportSize.X
-                            local screenHeight = camera.ViewportSize.Y
-                            
-                            -- Koordinat tombol hijau "Accept" kamu (60% lebar, 78% tinggi)
-                            local clickX = screenWidth * 0.60
-                            local clickY = screenHeight * 0.78
-                            
-                            -- Klik 1: Menerima ajakan trade awal
-                            vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
-                            task.wait(0.05)
-                            vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
-                            
-                            -- Jeda tenang setengah detik menunggu pop-up scam muncul
-                            task.wait(0.5)
-                            
-                            -- Klik 2: Menerima peringatan scam / Okay
-                            vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
-                            task.wait(0.05)
-                            vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
-                            
-                            -- [ANTI AUTO-CLICKER] Script dipaksa tidur 3 detik sebelum boleh mengeklik lagi
-                            -- Ini mencegah script melakukan spam berlebihan yang bisa merusak UI lain
-                            task.wait(3.0)
+                        -- JIKA SUDAH MASUK TRADE UTAMA -> KUNCI MATI SEMUA PROSES KLIK LAYAR
+                        if sedangTrade then
+                            tradeState.step = 2
+                            tradeState.locked = true
                         end
                         
                         -- ======================================================
-                        -- [BYPASS REMOTE TAHAP TENGAH & AKHIR]
+                        -- FLOW AUTOMATION GERBANG AWAL (ANTI-SPAM)
                         -- ======================================================
-                        -- Jika sudah masuk trade, fungsi klik di atas MATI 100%, sisa trade diproses via data server
+                        if not tradeState.locked then
+                            
+                            -- [STEP 0: DETEKSI AJAKAN TRADE AWAL]
+                            if tradeState.step == 0 then
+                                local ketemuTradeRequest = false
+                                -- Scan menyeluruh termasuk mengantisipasi nested container (saran ChatGPT)
+                                for _, obj in pairs(playerGui:GetDescendants()) do
+                                    if obj:IsA("TextLabel") and obj.Visible and obj.Text:lower():find("trade request") then
+                                        ketemuTradeRequest = true
+                                        break
+                                    end
+                                end
+                                
+                                if ketemuTradeRequest then
+                                    tradeState.step = 1 -- Naikkan ke step 1 agar tidak bisa mengeklik area ini lagi
+                                    
+                                    -- Eksekusi KLIK 1 (Terima Ajakan)
+                                    vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                                    task.wait(0.05)
+                                    vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+                                    
+                                    task.wait(0.5) -- Jeda setengah detik sesuai flow game
+                                end
+                                
+                            -- [STEP 1: DETEKSI PERINGATAN SCAM / POP-UP KEDUA]
+                            elseif tradeState.step == 1 then
+                                -- Langsung eksekusi Klik 2 untuk bypass scam warning yang muncul menggantikan pop-up awal
+                                vInput:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                                task.wait(0.05)
+                                vInput:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+                                
+                                tradeState.step = 2
+                                tradeState.locked = true -- SISTEM KLIK DIKUNCI MATI TOTAL!
+                            end
+                        end
+                        
+                        -- ======================================================
+                        -- [BYPASS REMOTE TAHAP TENGAH & AKHIR VIA SERVER]
+                        -- ======================================================
                         if sedangTrade and API then
                             if API:FindFirstChild("TradeAPI/AcceptNegotiation") then
                                 API["TradeAPI/AcceptNegotiation"]:FireServer()
@@ -96,9 +130,27 @@ Section:NewToggle("Auto Accept Trade", "Status: Mode Pengunci Jeda Akurat", func
                                 API["TradeAPI/ConfirmTrade"]:FireServer()
                             end
                         end
+                        
+                        -- RESET STATE JIKA TRANSAKSI SUDAH SELESAI / BATAL (KEMBALI KE LOBI)
+                        if not sedangTrade and tradeState.locked then
+                            -- Pastikan pop-up trade request sudah benar-benar hilang dari layar sebelum reset
+                            local masihAdaPopup = false
+                            for _, obj in pairs(playerGui:GetDescendants()) do
+                                if obj:IsA("TextLabel") and obj.Visible and obj.Text:lower():find("trade request") then
+                                    masihAdaPopup = true
+                                    break
+                                end
+                            end
+                            
+                            if not masihAdaPopup then
+                                tradeState.step = 0
+                                tradeState.locked = false
+                            end
+                        end
+                        
                     end
                 end)
-                task.wait(0.5) -- Pengecekan status berkala
+                task.wait(0.2) -- Polling ringan berkala (ramah baterai HP dan anti-lag)
             end
         end)
     end
